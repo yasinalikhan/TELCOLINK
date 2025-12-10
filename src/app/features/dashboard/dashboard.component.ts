@@ -62,6 +62,31 @@ import { DataService } from '../../core/services/data.service';
             <span>{{ isFocusModeActive ? 'FOCUS ACTIVE' : 'FOCUS MODE' }}</span>
           </button>
 
+          <!-- Heatmap Toggle -->
+          <button (click)="toggleHeatmap()" 
+                  [class.bg-red-500]="isHeatmapActive"
+                  [class.text-black]="isHeatmapActive"
+                  [class.text-red-500]="!isHeatmapActive"
+                  class="border border-red-500 px-3 py-1 rounded text-xs font-mono hover:bg-red-500 hover:text-black transition-colors flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span>{{ isHeatmapActive ? 'HEATMAP ON' : 'HEATMAP' }}</span>
+          </button>
+
+          <!-- Time Travel Toggle -->
+          <button (click)="toggleTimeTravel()" 
+                  [class.bg-yellow-500]="showTimeTravel"
+                  [class.text-black]="showTimeTravel"
+                  [class.text-yellow-500]="!showTimeTravel"
+                  class="border border-yellow-500 px-3 py-1 rounded text-xs font-mono hover:bg-yellow-500 hover:text-black transition-colors flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>{{ showTimeTravel ? 'PLAYBACK ON' : 'PLAYBACK' }}</span>
+          </button>
+
           <!-- Simulation Toggle -->
           <button (click)="toggleSimulation()" 
                   [class.bg-cyber-primary]="isSimulating"
@@ -90,13 +115,22 @@ import { DataService } from '../../core/services/data.service';
       </div>
 
       <!-- Main Graph Area (Center) -->
-      <div class="col-span-12 md:col-span-8 row-span-7 md:row-span-8 relative group">
-        <app-network-graph #networkGraph></app-network-graph>
-        <!-- Decorative corners -->
-        <div class="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-cyber-primary"></div>
-        <div class="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-cyber-primary"></div>
-        <div class="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-cyber-primary"></div>
-        <div class="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-cyber-primary"></div>
+      <div class="col-span-12 md:col-span-8 row-span-7 md:row-span-8 relative group flex flex-col">
+        <!-- Time Travel Slider -->
+        <div class="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 w-1/2 glass-panel p-2 flex items-center space-x-4" *ngIf="showTimeTravel">
+            <span class="text-xs text-cyber-primary font-mono whitespace-nowrap">TIME TRAVEL</span>
+            <input type="range" min="0" max="100" [value]="timeProgress" (input)="onTimeTravelChange($any($event.target).value)" class="w-full accent-cyber-primary h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+            <span class="text-xs text-cyber-accent font-mono whitespace-nowrap">{{ currentTimeLabel }}</span>
+        </div>
+
+        <div class="flex-1 relative">
+            <app-network-graph #networkGraph></app-network-graph>
+            <!-- Decorative corners -->
+            <div class="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-cyber-primary"></div>
+            <div class="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-cyber-primary"></div>
+            <div class="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-cyber-primary"></div>
+            <div class="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-cyber-primary"></div>
+        </div>
       </div>
 
       <!-- Right Panel (Map & Details) -->
@@ -131,6 +165,7 @@ export class DashboardComponent implements OnInit {
   isSimulating = false;
   isPathFinderActive = false;
   isFocusModeActive = false;
+  isHeatmapActive = false;
 
   constructor(private pdfService: PdfExporterService, private dataService: DataService) { }
   ngOnInit(): void { }
@@ -169,5 +204,86 @@ export class DashboardComponent implements OnInit {
       this.networkGraph.enablePathFinder(false);
     }
     this.networkGraph.enableFocusMode(this.isFocusModeActive);
+  }
+
+  toggleHeatmap() {
+    this.isHeatmapActive = !this.isHeatmapActive;
+    this.geoMap.toggleHeatmap(this.isHeatmapActive);
+  }
+
+  // Time Travel Logic
+  showTimeTravel = false;
+  timeProgress = 100;
+  currentTimeLabel = 'NOW';
+  private allData: any[] = [];
+
+  toggleTimeTravel() {
+    this.showTimeTravel = !this.showTimeTravel;
+    if (this.showTimeTravel) {
+      // Fetch full data to filter locally
+      this.dataService.getRawData().subscribe(data => {
+        this.allData = data;
+        this.onTimeTravelChange(100);
+      });
+    } else {
+      // Reset to full view
+      this.dataService.getRawData().subscribe(data => {
+        this.networkGraph.initCytoscape(this.processGraphData(data));
+        this.geoMap.renderMarkers(data);
+      });
+    }
+  }
+
+  onTimeTravelChange(value: number) {
+    this.timeProgress = value;
+
+    if (!this.allData.length) return;
+
+    // Sort data by timestamp
+    const sortedData = [...this.allData].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+    // Calculate cutoff index
+    const cutoffIndex = Math.floor((value / 100) * sortedData.length);
+    const filteredData = sortedData.slice(0, cutoffIndex);
+
+    // Update Label
+    if (filteredData.length > 0) {
+      const lastCall = filteredData[filteredData.length - 1];
+      this.currentTimeLabel = new Date(lastCall.timestamp).toLocaleString();
+    } else {
+      this.currentTimeLabel = 'START';
+    }
+
+    // Update Components
+    this.networkGraph.initCytoscape(this.processGraphData(filteredData));
+    this.geoMap.renderMarkers(filteredData);
+  }
+
+  // Helper to convert raw calls to graph format (duplicated from DataService for client-side filtering)
+  private processGraphData(calls: any[]) {
+    const nodeMap = new Map<string, any>();
+    const edgeMap = new Map<string, number>();
+
+    calls.forEach(call => {
+      if (!nodeMap.has(call.source)) nodeMap.set(call.source, { id: call.source, label: call.source, type: 'person', callVolume: 0 });
+      if (!nodeMap.has(call.target)) nodeMap.set(call.target, { id: call.target, label: call.target, type: 'person', callVolume: 0 });
+
+      nodeMap.get(call.source).callVolume++;
+      nodeMap.get(call.target).callVolume++;
+
+      const edgeKey = [call.source, call.target].sort().join('|');
+      edgeMap.set(edgeKey, (edgeMap.get(edgeKey) || 0) + 1);
+    });
+
+    const nodes = Array.from(nodeMap.values()).map(n => ({
+      data: { id: n.id, label: n.label, type: n.callVolume > 20 ? 'hub' : 'person', weight: n.callVolume }
+    }));
+
+    const edges = Array.from(edgeMap.entries()).map(([key, weight]) => {
+      const [source, target] = key.split('|');
+      return { data: { source, target, weight } };
+    });
+
+    return { nodes, edges };
   }
 }
