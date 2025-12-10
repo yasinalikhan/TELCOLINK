@@ -1,0 +1,39 @@
+@import 'leaflet/dist/leaflet.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom Scrollbar for Webkit */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #050505;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #00f2ff;
+}
+
+body {
+    @apply bg-cyber-bg text-cyber-text font-sans overflow-hidden;
+    margin: 0;
+    height: 100vh;
+    width: 100vw;
+}
+
+/* Glassmorphism Utilities */
+.glass-panel {
+    @apply bg-cyber-panel backdrop-blur-md border border-cyber-border rounded-lg shadow-lg;
+}
+
+.neon-text {
+    text-shadow: 0 0 5px rgba(0, 242, 255, 0.7);
+}
