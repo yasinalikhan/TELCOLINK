@@ -38,6 +38,9 @@ export class NetworkGraphComponent implements OnInit, AfterViewInit {
     cy!: cytoscape.Core;
 
     tooltip = { visible: false, x: 0, y: 0, title: '', content: '' };
+    pathFinderMode = false;
+    focusMode = false;
+    selectedNodes: any[] = [];
 
     constructor(private dataService: DataService) { }
 
@@ -50,13 +53,33 @@ export class NetworkGraphComponent implements OnInit, AfterViewInit {
     }
 
     initCytoscape(data: { nodes: any[], edges: any[] }) {
-        console.log('Initializing Cytoscape with data:', data);
-        console.log('Container dimensions:', this.cyContainer.nativeElement.offsetWidth, this.cyContainer.nativeElement.offsetHeight);
+        if (!data.nodes.length) return;
 
-        if (!data.nodes.length) {
-            console.warn('No nodes to render!');
+        if (this.cy) {
+            // Update existing graph
+            this.cy.json({ elements: { nodes: data.nodes, edges: data.edges } });
+
+            // Gentle layout refresh
+            this.cy.layout({
+                name: 'cose',
+                animate: true,
+                randomize: false,
+                fit: false,
+                componentSpacing: 100,
+                nodeRepulsion: (node: any) => 400000,
+                nestingFactor: 5,
+                gravity: 80,
+                numIter: 1000,
+                initialTemp: 200,
+                coolingFactor: 0.95,
+                minTemp: 1.0
+            } as any).run();
+
             return;
         }
+
+        console.log('Initializing Cytoscape with data:', data);
+        console.log('Container dimensions:', this.cyContainer.nativeElement.offsetWidth, this.cyContainer.nativeElement.offsetHeight);
 
         try {
             this.cy = cytoscape({
@@ -75,7 +98,7 @@ export class NetworkGraphComponent implements OnInit, AfterViewInit {
                             'font-size': '10px',
                             'text-valign': 'center',
                             'text-halign': 'center',
-                            'width': 40, // Fixed size for debugging
+                            'width': 40,
                             'height': 40,
                             'text-outline-width': 2,
                             'text-outline-color': '#000',
@@ -103,10 +126,51 @@ export class NetworkGraphComponent implements OnInit, AfterViewInit {
                             'curve-style': 'bezier',
                             'opacity': 0.5
                         }
+                    },
+                    {
+                        selector: 'edge[weight > 2]',
+                        style: {
+                            'width': 3,
+                            'line-color': '#00f2ff',
+                            'opacity': 0.8
+                        }
+                    },
+                    {
+                        selector: '.dimmed',
+                        style: {
+                            'opacity': 0.1,
+                            'label': ''
+                        }
+                    },
+                    {
+                        selector: '.highlighted',
+                        style: {
+                            'opacity': 1,
+                            'line-color': '#ff0055',
+                            'target-arrow-color': '#ff0055',
+                            'border-color': '#ff0055',
+                            'border-width': 2
+                        }
+                    },
+                    {
+                        selector: '.path-source',
+                        style: {
+                            'border-color': '#00ff00',
+                            'border-width': 4,
+                            'background-color': '#00ff00'
+                        }
+                    },
+                    {
+                        selector: '.path-target',
+                        style: {
+                            'border-color': '#ff0000',
+                            'border-width': 4,
+                            'background-color': '#ff0000'
+                        }
                     }
                 ],
                 layout: {
-                    name: 'grid', // Simple layout first
+                    name: 'grid',
                     animate: true
                 }
             });
@@ -136,9 +200,38 @@ export class NetworkGraphComponent implements OnInit, AfterViewInit {
                 }
             });
 
+            // Path Finder Click Listener
+            this.cy.on('tap', 'node', (event) => {
+                const node = event.target;
+
+                if (this.focusMode) {
+                    this.cy.elements().addClass('dimmed').removeClass('highlighted');
+                    node.removeClass('dimmed').addClass('highlighted');
+                    node.neighborhood().removeClass('dimmed').addClass('highlighted');
+                    this.cy.animate({
+                        fit: { eles: node.closedNeighborhood(), padding: 50 },
+                        duration: 500
+                    });
+                    return;
+                }
+
+                if (!this.pathFinderMode) return;
+
+                // Prevent selecting same node twice
+                if (this.selectedNodes.includes(node)) return;
+
+                if (this.selectedNodes.length < 2) {
+                    this.selectedNodes.push(node);
+                    node.addClass(this.selectedNodes.length === 1 ? 'path-source' : 'path-target');
+                }
+
+                if (this.selectedNodes.length === 2) {
+                    this.findShortestPath();
+                }
+            });
+
             console.log('Cytoscape initialized successfully');
 
-            // Force layout refresh
             setTimeout(() => {
                 const layout = this.cy.layout({
                     name: 'cose',
@@ -165,5 +258,131 @@ export class NetworkGraphComponent implements OnInit, AfterViewInit {
         } catch (error) {
             console.error('Error initializing Cytoscape:', error);
         }
+    }
+
+    enablePathFinder(active: boolean) {
+        this.pathFinderMode = active;
+        this.selectedNodes = [];
+        this.cy.elements().removeClass('highlighted dimmed path-source path-target path-edge');
+
+        if (!active) {
+            this.cy.fit();
+        }
+    }
+
+    enableFocusMode(active: boolean) {
+        this.focusMode = active;
+        this.cy.elements().removeClass('highlighted dimmed');
+        if (!active) {
+            this.cy.fit();
+        }
+    }
+
+    findShortestPath() {
+        const source = this.selectedNodes[0];
+        const target = this.selectedNodes[1];
+
+        const aStar = this.cy.elements().aStar({
+            root: source,
+            goal: target,
+            directed: false
+        });
+
+        if (aStar.found) {
+            this.cy.elements().addClass('dimmed');
+            aStar.path.removeClass('dimmed').addClass('highlighted');
+            source.removeClass('dimmed').addClass('highlighted');
+            target.removeClass('dimmed').addClass('highlighted');
+
+            this.cy.animate({
+                fit: { eles: aStar.path, padding: 50 },
+                duration: 500
+            });
+        } else {
+            alert('No path found between these nodes.');
+            this.selectedNodes = [];
+            this.cy.elements().removeClass('path-source path-target');
+        }
+    }
+
+
+
+    detectCommunities() {
+        if (!this.cy) return;
+
+        // Simple clustering simulation:
+        // 1. Reset styles
+        this.cy.elements().removeClass('dimmed highlighted path-source path-target');
+        this.cy.nodes().style({ 'background-color': '#00f2ff' }); // Reset to default
+
+        // 2. Identify hubs (already marked as type='hub')
+        const hubs = this.cy.nodes('[type="hub"]');
+
+        // 3. Assign a random neon color to each hub and its neighbors
+        const colors = ['#ff0055', '#00ff99', '#ffff00', '#ff9900', '#cc00ff', '#00ccff'];
+
+        hubs.forEach((hub, index) => {
+            const color = colors[index % colors.length];
+            hub.style({ 'background-color': color });
+
+            // Color neighbors same as hub
+            hub.neighborhood().nodes().forEach(neighbor => {
+                if (neighbor.data('type') !== 'hub') { // Don't override other hubs
+                    neighbor.style({ 'background-color': color });
+                }
+            });
+
+            // Color connecting edges
+            hub.connectedEdges().style({ 'line-color': color, 'target-arrow-color': color });
+        });
+
+        // 4. Run layout to visually separate clusters
+        this.cy.layout({
+            name: 'cose',
+            animate: true,
+            componentSpacing: 150,
+            nodeRepulsion: (node: any) => 800000,
+            nestingFactor: 5,
+            gravity: 50,
+            numIter: 1000
+        } as any).run();
+    }
+
+    filterNodes(query: string) {
+        if (!this.cy) return;
+
+        // Reset styles
+        this.cy.elements().removeClass('dimmed highlighted');
+
+        if (!query) {
+            this.cy.fit();
+            return;
+        }
+
+        const lowerQuery = query.toLowerCase();
+        const targetNodes = this.cy.nodes().filter(node => {
+            const label = node.data('label') ? node.data('label').toString().toLowerCase() : '';
+            const id = node.data('id') ? node.data('id').toString().toLowerCase() : '';
+            return label.includes(lowerQuery) || id.includes(lowerQuery);
+        });
+
+        if (targetNodes.length === 0) return;
+
+        // Dim everything
+        this.cy.elements().addClass('dimmed');
+
+        // Highlight targets and neighbors
+        targetNodes.addClass('highlighted');
+        targetNodes.neighborhood().addClass('highlighted');
+        targetNodes.connectedEdges().addClass('highlighted');
+
+        // Zoom to targets
+        this.cy.animate({
+            fit: {
+                eles: targetNodes,
+                padding: 50
+            },
+            duration: 500
+        });
     }
 }

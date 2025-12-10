@@ -20,6 +20,8 @@ import { DataService } from '../../../core/services/data.service';
 export class GeoMapComponent implements AfterViewInit {
   @ViewChild('mapContainer') mapContainer!: ElementRef;
   map!: L.Map;
+  markerLayer: L.LayerGroup = L.layerGroup();
+  allData: any[] = [];
 
   constructor(private dataService: DataService) { }
 
@@ -36,29 +38,52 @@ export class GeoMapComponent implements AfterViewInit {
       subdomains: 'abcd',
       maxZoom: 20
     }).addTo(this.map);
+
+    this.markerLayer.addTo(this.map);
   }
 
   loadData(): void {
     this.dataService.getRawData().subscribe(data => {
-      data.forEach(call => {
-        // Add a small circle for each call location
-        L.circleMarker([call.tower_lat, call.tower_lng], {
-          radius: 4,
-          fillColor: '#00f2ff',
-          color: '#000',
-          weight: 1,
-          opacity: 1,
-          fillOpacity: 0.6
-        })
-          .bindPopup(`
-          <div class="text-black">
-            <strong>Call ID:</strong> ${call.id}<br>
-            <strong>Source:</strong> ${call.source}<br>
-            <strong>Duration:</strong> ${call.duration}s
-          </div>
-        `)
-          .addTo(this.map);
-      });
+      this.allData = data;
+      this.renderMarkers(data);
     });
+  }
+
+  renderMarkers(data: any[]) {
+    this.markerLayer.clearLayers();
+    data.forEach(call => {
+      L.circleMarker([call.tower_lat, call.tower_lng], {
+        radius: 4,
+        fillColor: '#00f2ff',
+        color: '#000',
+        weight: 1,
+        opacity: 1,
+        fillOpacity: 0.6
+      })
+        .bindPopup(`
+        <div class="text-black">
+          <strong>Call ID:</strong> ${call.id}<br>
+          <strong>Source:</strong> ${call.source}<br>
+          <strong>Duration:</strong> ${call.duration}s
+        </div>
+      `)
+        .addTo(this.markerLayer);
+    });
+  }
+
+  filterMarkers(query: string) {
+    if (!query) {
+      this.renderMarkers(this.allData);
+      return;
+    }
+
+    const lowerQuery = query.toLowerCase();
+    const filteredData = this.allData.filter(call =>
+      call.source.toLowerCase().includes(lowerQuery) ||
+      call.target.toLowerCase().includes(lowerQuery) ||
+      call.id.toLowerCase().includes(lowerQuery)
+    );
+
+    this.renderMarkers(filteredData);
   }
 }
