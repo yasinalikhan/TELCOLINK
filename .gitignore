@@ -40,3 +40,8 @@ testem.log
 # System files
 .DS_Store
 Thumbs.db
+
+# Demo Image
+telcolink_demo.webp
+package-lock.json
+

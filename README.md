@@ -1,27 +1,57 @@
-# TelcoLink
+# TelcoLink - Advanced Link Analysis Dashboard
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 14.2.13.
+**TelcoLink** is a premium, "Cyberpunk Intelligence" themed Link Analysis Dashboard designed for Telecom data visualization and analytics. It provides analysts with powerful tools to investigate call records, detect communities, and track geospatial movements.
 
-## Development server
+## 🚀 Features
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The application will automatically reload if you change any of the source files.
+### 🔍 Advanced Analytics
+- **Global Search**: Instantly find any phone number or Call ID. The graph zooms in, and the map filters to show only relevant locations.
+- **Shortest Path Finder**: Select any two nodes to instantly find the connection path between them using the A* Algorithm.
+- **Community Detection**: Auto-detect and color-code network communities (Hubs & Neighbors) to identify key influencers.
+- **Drill-Down Focus Mode**: Isolate a specific node and its direct connections, hiding the noise for focused investigation.
 
-## Code scaffolding
+### 🗺️ Geospatial Intelligence
+- **Interactive Map**: Dark-themed Leaflet map showing tower locations.
+- **Heatmap Layer**: Visualize call density and active tower hotspots.
+- **Real-Time Updates**: Markers update dynamically as new calls are simulated.
 
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
+### ⏱️ Time-Travel & Simulation
+- **Real-Time Simulation**: Watch new calls come in live with dynamic graph updates.
+- **Time-Travel Playback**: Replay call history using a timeline slider to investigate events as they unfolded.
 
-## Build
+### 📊 Reporting
+- **Export Reports**: One-click PDF download of the current dashboard state for intelligence reports.
+- **Volume Trends**: Interactive bar charts showing call volume over time.
 
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory.
+## 🎨 Visuals & Design
+- **Theme**: Cyberpunk Intelligence.
+- **Palette**: Deep black/grey backgrounds (`#050505`) with Neon Cyan (`#00f2ff`) and Purple (`#7000ff`) accents.
+- **UI**: Glassmorphism panels with blur effects for a modern, high-tech feel.
 
-## Running unit tests
+## 🛠️ Tech Stack
+- **Framework**: Angular 14
+- **Styling**: Tailwind CSS (Custom Configuration)
+- **Graph Visualization**: Cytoscape.js
+- **Maps**: Leaflet & Leaflet.heat
+- **Charts**: Apache ECharts
+- **PDF Export**: html2canvas & jspdf
 
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
+## 🏃‍♂️ How to Run
 
-## Running end-to-end tests
+1. **Install Dependencies**:
+   ```bash
+   npm install
+   ```
 
-Run `ng e2e` to execute the end-to-end tests via a platform of your choice. To use this command, you need to first add a package that implements end-to-end testing capabilities.
+2. **Start the Development Server**:
+   ```bash
+   npm start
+   ```
 
-## Further help
+3. **Open Application**:
+   Navigate to `http://localhost:4200` in your browser.
 
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI Overview and Command Reference](https://angular.io/cli) page.
+## 🔮 Future Roadmap
+- **Real Data Integration**: Replace the mock data generator with a real REST API or WebSocket feed.
+- **Advanced Filters**: Add date range pickers and specific number search.
+- **3D Visualization**: Explore 3D graph rendering for larger datasets.
